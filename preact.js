@@ -1,8 +1,14 @@
 const Preact = {
-  createElement(elementType, elementProps, children) {
+  /**
+   * Builds a Preact element with type, props and its children attached to it
+   * @param type - Type of the element 
+   * @param props - Its props
+   * @param children - Its children
+   */
+  createElement(type, props, children) {
     const element = {
-      type: elementType,
-      props: elementProps || {}
+      type,
+      props: props || {}
     };
 
     if (children) {
@@ -12,11 +18,15 @@ const Preact = {
     return element;
   },
 
+  /**
+   * Renders element inside the container
+   * @param element - What should be rendered
+   * @param container - Where it should be rendered
+   */
   render(element, container) {
-    const wrapperElement = this.createElement(TopLevelWrapper, element);
-    const componentInstance = new PreactCompositeComponentWrapper(wrapperElement);
-    //const componentInstance = new PreactDOMComponent(element);
-    return componentInstance.mountComponent(container);
+    const wrapperElement = this.createElement(TopLevelWrapper, element);            // Wrap the element in a top level wrapper
+    const componentInstance = new PreactCompositeComponentWrapper(wrapperElement);  // Pass this wrapper into the composide component wrapper
+    return componentInstance.mountComponent(container);                             // mount the component into the container and return the dom node
   },
 
   createClass(spec) {
@@ -30,55 +40,66 @@ const Preact = {
   }
 }
 
+// ---------------------------- Preact Composite Component Wrapper -----------------------------------
 class PreactCompositeComponentWrapper {
   constructor(element) {
-    this._currentElement = element;
+    this.currentElement = element;
   }
 
+  /**
+   * Mounts the Composide Component into the container
+   * @param container - Where the component should be mounted
+   */
   mountComponent(container) {
-    const Component = this._currentElement.type;
-    const componentInstance = new Component(this._currentElement.props);
+    const Component = this.currentElement.type;                         // Gets the type of current element
+    const componentInstance = new Component(this.currentElement.props); // Creates a component with the element props
 
-    let element = componentInstance.render();
+    let element = componentInstance.render();                           // Calls its render method
 
-    while(typeof element.type === "function") {
+    // shortcut fix. Will be changed later
+    while (typeof element.type === "function") {
       element = (new element.type(element.props)).render();
     }
 
-    const domComponentInstance = new PreactDOMComponent(element);
-    return domComponentInstance.mountComponent(container);
+    const domComponentInstance = new PreactDOMComponent(element);   // Creates a PreactDomComponent based on the element   
+    return domComponentInstance.mountComponent(container);          // Mounts the domComponent into the container and returns the DOM node of the domComponentInstance
   }
 }
 
-// ---------------------------- DOM Component -----------------------------------
+// ---------------------------- Preact DOM Component -----------------------------------
+// * this.currentElement: Has the javascript object with the element information
+// * this.hostNode:       Has the actual DOM node
 class PreactDOMComponent {
   constructor(element) {
-    this._currentElement = element;
+    this.currentElement = element;
   }
 
+  /**
+   * Mounts the DOM Component into the container
+   * @param container - Where the component should be mounted
+   */
   mountComponent(container) {
-    const domElement = document.createElement(this._currentElement.type);
-    const text = this._currentElement.props.children; // At this point assumes the children it actually only text
-    const textNode = document.createTextNode(text);
-    domElement.appendChild(textNode);
-    container.appendChild(domElement);
+    const domElement = document.createElement(this.currentElement.type);  // Creates and element of given type
+    const text = this.currentElement.props.children;                      // In this case the only accepted type of children is plain text
+    const textNode = document.createTextNode(text);                       // creates a text node
+    domElement.appendChild(textNode);                                     // Appends the text to the element
+    container.appendChild(domElement);                                    // Appends the element to the container
 
-    this._hostNode = domElement;
-    return domElement;
+    this.hostNode = domElement; // Saves the DOM node into the Component
+    return domElement;          // Returns the DOM node
   }
-
 }
 
 // ---------------------------- Top Level Wrapper -----------------------------------
-const TopLevelWrapper = function(props) {
-  this.props = props;
-};
+class TopLevelWrapper {
+  constructor(props) {
+    this.props = props;
+  }
 
-TopLevelWrapper.prototype.render = function() {
-  return this.props;
-};
-
-
+  render() {
+    return this.props;
+  }
+}
 
 // Tests
 const MyTitle = Preact.createClass({
